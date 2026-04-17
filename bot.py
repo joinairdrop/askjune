@@ -10,61 +10,29 @@ JUNE_API_KEY = os.getenv('JUNE_API_KEY')
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# Setup AskJune AI
 client = OpenAI(
     api_key=JUNE_API_KEY,
     base_url="https://api.askjune.ai/v1"
 )
 
-user_histories = {}
-
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, """👋 **Bot AskJune AI Siap!**
+    bot.reply_to(message, "👋 Bot AskJune AI sedang diuji.\nKetik apa saja untuk test.")
 
-Sekarang kamu terhubung dengan AskJune AI.
-
-Ketik apa saja, aku akan jawab pakai AskJune.
-
-Contoh:
-- "Siapa presiden Indonesia sekarang?"
-- "Buat cerita pendek tentang robot"
-- "Apa itu Bitcoin?"
-
-Gas chat! 🔥""")
-
-@bot.message_handler(commands=['clear'])
-def clear_history(message):
-    user_histories[message.chat.id] = []
-    bot.reply_to(message, "✅ Memory chat sudah dihapus!")
-
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    chat_id = message.chat.id
-    bot.send_chat_action(chat_id, 'typing')
-
-    if chat_id not in user_histories:
-        user_histories[chat_id] = []
-
+    bot.send_chat_action(message.chat.id, 'typing')
+    
     try:
-        text = message.text.strip()
-
-        user_histories[chat_id].append({"role": "user", "content": text})
-        if len(user_histories[chat_id]) > 20:
-            user_histories[chat_id] = user_histories[chat_id][-20:]
-
         response = client.chat.completions.create(
-            model="gpt-4o",           # Bisa diganti: claude-3.5-sonnet, grok-beta, dll
-            messages=user_histories[chat_id]
+            model="gpt-4o",        # coba ganti ke "claude-3.5-sonnet" kalau ada
+            messages=[{"role": "user", "content": message.text}]
         )
-
-        reply = response.choices[0].message.content
-
-        user_histories[chat_id].append({"role": "assistant", "content": reply})
-        bot.reply_to(message, reply)
-
+        bot.reply_to(message, response.choices[0].message.content)
+        
     except Exception as e:
-        bot.reply_to(message, f"❌ Error: {str(e)[:200]}")
+        error_text = str(e)
+        bot.reply_to(message, f"❌ Connection Error:\n{error_text[:400]}")
 
-print("✅ Bot AskJune AI sudah nyala!")
+print("Bot running...")
 bot.infinity_polling()
