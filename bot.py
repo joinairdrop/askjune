@@ -10,7 +10,6 @@ JUNE_API_KEY = os.getenv('JUNE_API_KEY')
 
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-# Setup AskJune dengan konfigurasi yang lebih aman
 client = OpenAI(
     api_key=JUNE_API_KEY,
     base_url="https://api.askjune.ai/v1"
@@ -18,18 +17,12 @@ client = OpenAI(
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, """👋 **AskJune Bot sudah terhubung!**
+    bot.reply_to(message, f"""AskJune Bot Diagnostic
 
-Sekarang bot ini menggunakan AskJune AI.
+Token Telegram: ✅ OK
+API Key AskJune: {'✅ Ada' if JUNE_API_KEY else '❌ Kosong'}
 
-Ketik apa saja untuk test.
-
-Contoh:
-- Halo
-- Siapa presiden Indonesia?
-- Apa itu Bitcoin?
-
-Gas! 🔥""")
+Ketik apa saja untuk test koneksi ke AskJune.""")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
@@ -37,20 +30,23 @@ def handle_message(message):
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o",                    # Model default yang paling stabil
+            model="gpt-4o",
             messages=[{"role": "user", "content": message.text}],
-            timeout=60
+            timeout=30
         )
         bot.reply_to(message, response.choices[0].message.content)
         
     except Exception as e:
-        error_msg = str(e)
-        if "401" in error_msg or "authentication" in error_msg.lower():
-            bot.reply_to(message, "❌ API Key AskJune tidak valid atau belum aktif.")
-        elif "404" in error_msg or "not found" in error_msg.lower():
-            bot.reply_to(message, "❌ Base URL AskJune salah.")
-        else:
-            bot.reply_to(message, f"❌ Connection Error:\n{error_msg[:300]}")
+        error = str(e)
+        bot.reply_to(message, f"""❌ Connection Error
 
-print("✅ AskJune Bot V9.1 sedang berjalan...")
+Error message:
+{error[:500]}
+
+Solusi yang bisa dicoba:
+1. Cek apakah API Key AskJune sudah aktif
+2. Cek quota / limit di dashboard AskJune
+3. Coba ganti model ke "claude-3.5-sonnet" atau "grok-beta" kalau tersedia""")
+
+print("Bot running with diagnostic mode...")
 bot.infinity_polling()
