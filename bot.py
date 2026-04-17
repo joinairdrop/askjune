@@ -12,39 +12,35 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
 client = OpenAI(
     api_key=JUNE_API_KEY,
-    base_url="https://api.blockchain.info/ai/api/v1"
+    base_url="https://api.blockchain.info/ai/api/v1"   # ← Base URL yang BENAR
 )
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, """✅ **AskJune Bot Test**
+    bot.reply_to(message, """✅ **AskJune Bot sudah terhubung!**
 
-API Key terdeteksi.
+Sekarang menggunakan model resmi AskJune (`blockchain/june`).
 
-Coba ketik pertanyaan apa saja.
+Ketik apa saja untuk test.
 
-Saya akan mencoba beberapa model yang mungkin didukung.""")
+Contoh:
+- Halo
+- Siapa presiden Indonesia sekarang?
+- Jelaskan Bitcoin secara singkat""")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     bot.send_chat_action(message.chat.id, 'typing')
     
-    models_to_try = ["claude-3.5-sonnet", "gpt-4o-mini", "grok-beta", "claude-3-opus"]
+    try:
+        response = client.chat.completions.create(
+            model="blockchain/june",      # ← Model resmi AskJune
+            messages=[{"role": "user", "content": message.text}]
+        )
+        bot.reply_to(message, response.choices[0].message.content)
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ Error:\n{str(e)[:400]}")
 
-    for model in models_to_try:
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": message.text}]
-            )
-            bot.reply_to(message, f"**Model: {model}**\n\n{response.choices[0].message.content}")
-            return   # Kalau berhasil, stop di model pertama yang jalan
-
-        except Exception as e:
-            continue  # Coba model berikutnya kalau gagal
-
-    # Kalau semua model gagal
-    bot.reply_to(message, "❌ Semua model yang dicoba gagal.\nMungkin API Key belum memiliki akses model chat.")
-
-print("✅ Bot AskJune dengan multiple model test sudah nyala!")
+print("✅ AskJune Bot V9.2 (menggunakan model blockchain/june) sudah nyala!")
 bot.infinity_polling()
